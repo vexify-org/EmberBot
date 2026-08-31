@@ -1,0 +1,9 @@
+{
+  "port": 3737,
+  "apiKey": "",
+  "modelName": "emberbot",
+  "pythonPath": "python3",
+  "pluginsDir": "./plugins",
+  "provider": "null",
+  "requestTimeoutMs": 60000
+}

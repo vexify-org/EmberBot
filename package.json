@@ -1,0 +1,15 @@
+{
+  "name": "emberbot",
+  "version": "0.1.0",
+  "description": "EmberBot: an OpenAI-compatible gateway that hosts AstrBot skills/plugins, designed to pair with OpenClaw QQ bot channels.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "node src/index.ts",
+    "dev": "node --watch src/index.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "Apache-2.0"
+}

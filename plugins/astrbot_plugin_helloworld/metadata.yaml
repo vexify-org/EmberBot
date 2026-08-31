@@ -1,0 +1,5 @@
+name: helloworld
+desc: EmberBot 示例插件，验证 AstrBot 插件兼容性
+version: v1.0.0
+author: EmberBot
+repo: https://github.com/EmberBot/emberbot

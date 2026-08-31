@@ -1,0 +1,3 @@
+# 兼容旧版导入路径：from astrbot.api.message_components import Plain, Image, ...
+from .event.components import *  # noqa: F401,F403
+from .event.components import __all__ as _components_all  # noqa: F401
