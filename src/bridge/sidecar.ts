@@ -4,7 +4,8 @@
 // - sidecar 崩溃时自动重启
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { EventEmitter } from "node:events";
-import { join, resolve, dirname, fileURLToPath } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { BridgeChatResult } from "../types.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));

@@ -21,7 +21,7 @@ class MyPlugin(Star):
         """原样复述消息"""
         yield event.plain_result(f"Echo: {event.message_str}")
 
-    @filter.regex(r"^\s*(?:你好|hello|hi)\b", )
+    @filter.regex(r"^\s*(?:你好|hello|hi)")
     async def greet(self, event: AstrMessageEvent):
         """问候语回应"""
         yield event.plain_result("你好！我是 EmberBot，很高兴见到你。")
