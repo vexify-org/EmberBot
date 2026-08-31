@@ -5,5 +5,6 @@
   "pythonPath": "python3",
   "pluginsDir": "./plugins",
   "provider": "null",
+  "openclawCmd": "openclaw gateway",
   "requestTimeoutMs": 60000
 }

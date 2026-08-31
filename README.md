@@ -53,27 +53,49 @@ cp config.example.json config.json   # 按需修改
 # 3. 放入你的 AstrBot 插件
 #    把插件目录（含 metadata.yaml + main.py）放到 plugins/ 下
 
-# 4. 启动
-node src/index.ts
-# [emberbot] OpenAI 兼容网关已就绪: http://127.0.0.1:3737/v1
+# 4. 启动（推荐：`eb start` 一套启动 EmberBot + OpenClaw，后台运行）
+./eb start
+# [ember] EmberBot 网关已启动 (pid ...)
+# [openclaw] 网关已启动 (pid ...)   ← 未装 openclaw 会给提示但不影响 EmberBot
+
+# 或仅启动 EmberBot 网关
+./eb gateway
 ```
 
 启动后，先把你的 AstrBot 插件放到 `plugins/`，插件会在启动时加载并打印到日志。
 
+## CLI（eb）
+
+| 命令 | 说明 |
+| --- | --- |
+| `./eb start` | 同步启动 **EmberBot 网关 + OpenClaw**（后台运行，日志在 `data/logs/`） |
+| `./eb stop` | 停止 EmberBot + OpenClaw |
+| `./eb restart` | 重启 |
+| `./eb status` | 查看运行状态 |
+| `./eb gateway` | 仅启动 EmberBot 网关 |
+| `./eb stop-em` | 仅停止 EmberBot |
+| `./eb openclaw` | 仅启动 OpenClaw |
+| `./eb help` | 帮助 |
+
+> `eb start` 会把进程放到后台（daemon 化），启动后立即返回控制权；日志分别写入
+> `data/logs/ember.log` 与 `data/logs/openclaw.log`。OpenClaw 启动命令通过
+> `config.json` 的 `openclawCmd` 配置（默认 `openclaw gateway`，也可用 `openclaw-cn gateway`）。
+
 ## 对接 OpenClaw + QQ
 
-1. **EmberBot**：启动后监听 `http://127.0.0.1:3737/v1`。
+1. **启动**：`./eb start`（EmberBot 监听 `http://127.0.0.1:3737/v1`，并同步拉起 OpenClaw）。
 
-2. **OpenClaw 安装 QQ 频道插件**（绑定 QQ 机器人，收发消息）：
+2. **LLM 由你提供**：EmberBot 只对外暴露 OpenAI 兼容接口，**真实模型你在 OpenClaw
+   的模型配置里自己填**——添加一个 OpenAI 兼容 provider，指向 `http://127.0.0.1:3737/v1`，
+   `apiKey` 填 EmberBot `config.json` 的 `apiKey`（默认空则放行），模型名填 `modelName`
+   （默认 `emberbot`）。
+
+3. **绑定 QQ**（OpenClaw 侧）：安装 QQ 频道插件并绑定机器人，确保 OpenClaw 能收发 QQ 消息：
 
    ```bash
    openclaw plugins install @openclaw/qqbot
    openclaw channels add --channel qqbot --token "AppID:AppSecret"
    ```
-
-3. **OpenClaw 配置模型 provider 指向 EmberBot**：在你的 OpenClaw 模型配置里添加一个
-   OpenAI 兼容的 provider，指向 `http://127.0.0.1:3737/v1`，`apiKey` 填 EmberBot 的
-   `config.json` 里配置的 `apiKey`（默认空则放行），模型名填 `modelName`（默认 `emberbot`）。
 
 4. **测试**：用手机 QQ 找到你的机器人，发 `/helloworld`，应看到 `Hello, <你的昵称>!`。
 
@@ -87,6 +109,7 @@ node src/index.ts
 | `pythonPath` / `EMBER_PYTHON` | python 可执行文件 | `python3` |
 | `pluginsDir` / `EMBER_PLUGINS_DIR` | AstrBot 插件目录 | `./plugins` |
 | `provider` / `EMBER_PROVIDER` | 内部 LLM Provider id（未命中插件时使用） | `null` |
+| `openclawCmd` / `EMBER_OPENCLAW_CMD` | OpenClaw 启动命令（`eb start` 用） | `openclaw gateway` |
 | `requestTimeoutMs` / `EMBER_TIMEOUT_MS` | sidecar 请求超时 | `60000` |
 
 ## 接入内部 LLM Provider

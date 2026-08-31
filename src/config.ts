@@ -14,6 +14,7 @@ export interface EmberConfig {
   pluginsDir: string;
   provider: string;
   requestTimeoutMs: number;
+  openclawCmd: string;
 }
 
 interface RawConfig {
@@ -24,6 +25,7 @@ interface RawConfig {
   pluginsDir?: string;
   provider?: string;
   requestTimeoutMs?: number;
+  openclawCmd?: string;
 }
 
 function loadConfigFile(): RawConfig {
@@ -52,5 +54,6 @@ export function loadConfig(): EmberConfig {
     requestTimeoutMs: Number(
       process.env.EMBER_TIMEOUT_MS ?? file.requestTimeoutMs ?? 60_000
     ),
+    openclawCmd: process.env.EMBER_OPENCLAW_CMD ?? file.openclawCmd ?? "openclaw gateway",
   };
 }
