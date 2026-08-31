@@ -12,7 +12,7 @@
 // OpenClaw 的模型配置里填入，EmberBot 不关心也不内置具体模型。
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, openSync, closeSync, watchFile } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, openSync, closeSync, watchFile, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.ts";
@@ -242,18 +242,121 @@ function cmdLogs(follow: boolean, target: LogName | null, count: number): void {
   process.on("SIGINT", () => process.exit(0));
 }
 
+function cmdInfo(): void {
+  const config = loadConfig();
+  console.log("EmberBot 配置摘要");
+  console.log(`  端口           ${config.port}`);
+  console.log(`  模型名         ${config.modelName}`);
+  console.log(`  API Key        ${config.apiKey ? "已设置" : "(空，不校验)"}`);
+  console.log(`  Python         ${config.pythonPath}`);
+  console.log(`  插件目录       ${config.pluginsDir}`);
+  console.log(`  LLM Provider   ${config.provider}${config.provider === "null" ? "（占位，未接真实模型）" : ""}`);
+  console.log(`  OpenClaw 命令  ${config.openclawCmd}`);
+  console.log(`  侧车超时       ${config.requestTimeoutMs}ms`);
+}
+
+/** 极简解析 metadata.yaml 的 key: value 行，无需 YAML 库 */
+function parseMetadata(file: string): Record<string, string> {
+  const meta: Record<string, string> = {};
+  if (!existsSync(file)) return meta;
+  try {
+    const lines = readFileSync(file, "utf-8").split("\n");
+    for (const line of lines) {
+      const m = line.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
+      if (m) meta[m[1]] = m[2].trim();
+    }
+  } catch {
+    /* 忽略解析失败 */
+  }
+  return meta;
+}
+
+function cmdPlugins(): void {
+  const config = loadConfig();
+  const dir = config.pluginsDir;
+  if (!existsSync(dir) || !readdirSync(dir).length) {
+    console.log(`插件目录为空或不存在: ${dir}`);
+    return;
+  }
+
+  const found: Array<{ name: string; version: string; desc: string; author: string }> = [];
+  for (const entry of readdirSync(dir).sort()) {
+    const pdir = join(dir, entry);
+    if (!existsSync(join(pdir, "main.py"))) continue;
+    const meta = parseMetadata(join(pdir, "metadata.yaml"));
+    if (!meta.name) continue;
+    found.push({
+      name: meta.name,
+      version: meta.version ?? "?",
+      desc: meta.desc ?? "",
+      author: meta.author ?? "",
+    });
+  }
+
+  if (!found.length) {
+    console.log(`在 ${dir} 下未发现任何插件（需含 metadata.yaml + main.py）`);
+    return;
+  }
+  console.log(`已发现 ${found.length} 个 AstrBot 插件：\n`);
+  for (const p of found) {
+    const v = /^v/i.test(p.version) ? p.version : `v${p.version}`;
+    console.log(`  • ${p.name}  ${v}${p.author ? `  by ${p.author}` : ""}`);
+    if (p.desc) console.log(`      ${p.desc}`);
+  }
+  console.log(`\n（详情：./eb logs 查看运行时的插件加载日志；加载需先 ./eb start）`);
+}
+
+async function cmdTest(msg: string): Promise<void> {
+  const config = loadConfig();
+  const url = `http://127.0.0.1:${config.port}/v1/chat/completions`;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
+  const body = JSON.stringify({
+    model: config.modelName,
+    messages: [{ role: "user", content: msg }],
+  });
+
+  try {
+    const resp = await fetch(url, { method: "POST", headers, body });
+    const data: any = await resp.json();
+    if (resp.ok) {
+      const content = data.choices?.[0]?.message?.content ?? JSON.stringify(data);
+      console.log(`回复: ${content}`);
+    } else {
+      console.error(`错误 (HTTP ${resp.status}): ${data.error?.message ?? JSON.stringify(data)}`);
+    }
+  } catch (err) {
+    console.error(`请求失败: ${(err as Error).message}`);
+    console.error("提示: 请先执行 `./eb start` 启动网关。");
+    process.exitCode = 1;
+  }
+}
+
+function cmdVersion(): void {
+  try {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf-8"));
+    console.log(`eb v${pkg.version}`);
+  } catch {
+    console.log("eb (unknown version)");
+  }
+}
+
 function printHelp(): void {
-  console.log(`EmberBot CLI v${process.env.npm_package_version ?? "0.1.0"}
+  console.log(`EmberBot CLI
 
 用法:
   eb start          启动 EmberBot 网关 + OpenClaw（同步）
   eb stop           停止 EmberBot + OpenClaw
   eb restart        重启 EmberBot + OpenClaw
   eb status         查看运行状态
+  eb info           查看配置摘要
+  eb plugins        列出 plugins/ 下的 AstrBot 插件
+  eb test [消息]    向本地网关发一条测试消息（默认 /helloworld）
   eb gateway        仅启动 EmberBot 网关
   eb stop-em        仅停止 EmberBot
   eb openclaw       仅启动 OpenClaw
   eb logs           查看日志（尾部），可加 -f 跟随、<ember|openclaw> 指定
+  eb -v, --version  显示版本号
   eb help           显示帮助
 
 说明:
@@ -293,6 +396,23 @@ async function main(): Promise<void> {
       break;
     case "status":
       cmdStatus();
+      break;
+    case "info":
+      cmdInfo();
+      break;
+    case "plugins":
+    case "list":
+      cmdPlugins();
+      break;
+    case "test": {
+      const msg = args.slice(1).join(" ") || "/helloworld";
+      await cmdTest(msg);
+      break;
+    }
+    case "-v":
+    case "--version":
+    case "version":
+      cmdVersion();
       break;
     case "logs": {
       const rest = args.slice(1);

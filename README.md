@@ -72,10 +72,14 @@ cp config.example.json config.json   # 按需修改
 | `./eb stop` | 停止 EmberBot + OpenClaw |
 | `./eb restart` | 重启 |
 | `./eb status` | 查看运行状态 |
+| `./eb info` | 查看配置摘要 |
+| `./eb plugins` | 列出 `plugins/` 下的 AstrBot 插件 |
+| `./eb test [消息]` | 向本地网关发一条测试消息（默认 `/helloworld`） |
 | `./eb gateway` | 仅启动 EmberBot 网关 |
 | `./eb stop-em` | 仅停止 EmberBot |
 | `./eb openclaw` | 仅启动 OpenClaw |
 | `./eb logs` | 查看日志尾部；`-f` 跟随、`-n N` 行数、`ember`/`openclaw` 指定 |
+| `./eb -v` / `--version` | 显示版本号 |
 | `./eb help` | 帮助 |
 
 > `eb start` 会把进程放到后台（daemon 化），启动后立即返回控制权；日志分别写入
