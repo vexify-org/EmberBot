@@ -75,6 +75,7 @@ cp config.example.json config.json   # 按需修改
 | `./eb gateway` | 仅启动 EmberBot 网关 |
 | `./eb stop-em` | 仅停止 EmberBot |
 | `./eb openclaw` | 仅启动 OpenClaw |
+| `./eb logs` | 查看日志尾部；`-f` 跟随、`-n N` 行数、`ember`/`openclaw` 指定 |
 | `./eb help` | 帮助 |
 
 > `eb start` 会把进程放到后台（daemon 化），启动后立即返回控制权；日志分别写入

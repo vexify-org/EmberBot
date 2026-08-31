@@ -12,7 +12,7 @@
 // OpenClaw 的模型配置里填入，EmberBot 不关心也不内置具体模型。
 
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, openSync, closeSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, openSync, closeSync, watchFile } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig } from "./config.ts";
@@ -178,6 +178,70 @@ function cmdStatus(): void {
   );
 }
 
+const LOG_TARGETS = {
+  ember: join(LOG_DIR, "ember.log"),
+  openclaw: join(LOG_DIR, "openclaw.log"),
+} as const;
+
+type LogName = keyof typeof LOG_TARGETS;
+
+function tailLines(file: string, count: number): string[] {
+  if (!existsSync(file)) return [];
+  try {
+    const lines = readFileSync(file, "utf-8").split("\n");
+    return lines.slice(-count);
+  } catch {
+    return [];
+  }
+}
+
+function cmdLogs(follow: boolean, target: LogName | null, count: number): void {
+  const names: LogName[] = target ? [target] : ["ember", "openclaw"];
+
+  const printAll = (first = false) => {
+    let out = "";
+    for (const name of names) {
+      const lines = tailLines(LOG_TARGETS[name], count);
+      if (lines.length) {
+        out += `${first ? "" : "\n"}${"=".repeat(20)} ${name} ${"=".repeat(20)}\n`;
+        out += lines.join("\n") + "\n";
+      }
+    }
+    if (out) process.stdout.write(out);
+    if (!follow && !out) console.log("(暂无日志)");
+  };
+
+  printAll(true);
+
+  if (!follow) return;
+
+  for (const name of names) {
+    const file = LOG_TARGETS[name];
+    let lastSize = existsSync(file) ? readFileSync(file, "utf-8").length : 0;
+    watchFile(file, { interval: 500 }, (curr) => {
+      const newSize = curr.size;
+      if (newSize > lastSize) {
+        try {
+          const content = readFileSync(file, "utf-8");
+          const delta = content.slice(lastSize);
+          if (delta) {
+            process.stdout.write(`\n${"=".repeat(20)} ${name} ${"=".repeat(20)}\n`);
+            process.stdout.write(delta.endsWith("\n") ? delta : delta + "\n");
+          }
+        } catch {
+          /* 读文件失败忽略 */
+        }
+      }
+      lastSize = Math.max(newSize, lastSize);
+    });
+  }
+
+  console.log(`\n(跟随日志中，按 Ctrl+C 退出)`);
+  // 保持进程存活以持续监听
+  process.stdin.resume();
+  process.on("SIGINT", () => process.exit(0));
+}
+
 function printHelp(): void {
   console.log(`EmberBot CLI v${process.env.npm_package_version ?? "0.1.0"}
 
@@ -189,6 +253,7 @@ function printHelp(): void {
   eb gateway        仅启动 EmberBot 网关
   eb stop-em        仅停止 EmberBot
   eb openclaw       仅启动 OpenClaw
+  eb logs           查看日志（尾部），可加 -f 跟随、<ember|openclaw> 指定
   eb help           显示帮助
 
 说明:
@@ -229,6 +294,17 @@ async function main(): Promise<void> {
     case "status":
       cmdStatus();
       break;
+    case "logs": {
+      const rest = args.slice(1);
+      const follow = rest.includes("-f") || rest.includes("--follow");
+      const nIdx = rest.indexOf("-n");
+      const count = nIdx >= 0 && rest[nIdx + 1] ? Number(rest[nIdx + 1]) : 50;
+      const targetArg = rest.find((a) => a === "ember" || a === "openclaw");
+      const target: LogName | null =
+        targetArg === "ember" || targetArg === "openclaw" ? targetArg : null;
+      cmdLogs(follow, target, Number.isFinite(count) ? count : 50);
+      break;
+    }
     case "help":
     case "-h":
     case "--help":
