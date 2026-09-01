@@ -512,6 +512,10 @@ async function main(): Promise<void> {
     case "version":
       cmdVersion();
       break;
+    case "doctor":
+    case "check":
+      await cmdDoctor();
+      break;
     case "logs": {
       const rest = args.slice(1);
       const follow = rest.includes("-f") || rest.includes("--follow");

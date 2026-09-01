@@ -72,6 +72,7 @@ cp config.example.json config.json   # 按需修改
 | `./eb stop` | 停止 EmberBot + OpenClaw |
 | `./eb restart` | 重启 |
 | `./eb status` | 查看运行状态 |
+| `./eb doctor` | 环境自检（Node/Python/openclaw/插件/网关连通性） |
 | `./eb info` | 查看配置摘要 |
 | `./eb plugins` | 列出 `plugins/` 下的 AstrBot 插件 |
 | `./eb test [消息]` | 向本地网关发一条测试消息（默认 `/helloworld`） |
