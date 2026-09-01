@@ -1,0 +1,10 @@
+{
+  "port": 3737,
+  "apiKey": "",
+  "modelName": "emberbot",
+  "pythonPath": "python3",
+  "pluginsDir": "./plugins",
+  "provider": "null",
+  "openclawCmd": "openclaw gateway",
+  "requestTimeoutMs": 60000
+}

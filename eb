@@ -1,0 +1,5 @@
+#!/bin/sh
+# EmberBot CLI launcher
+# 用法: ./eb start | stop | restart | status | gateway | openclaw | help
+DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec node "$DIR/src/cli.ts" "$@"
