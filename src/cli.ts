@@ -341,6 +341,100 @@ function cmdVersion(): void {
   }
 }
 
+/** 执行命令探测，返回 stdout（失败返回 null）。超时 3s。 */
+function probe(cmd: string, args: string[]): Promise<string | null> {
+  return new Promise((resolveProbe) => {
+    let out = "";
+    let done = false;
+    const finish = (v: string | null) => {
+      if (!done) {
+        done = true;
+        resolveProbe(v);
+      }
+    };
+    const proc = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const timer = setTimeout(() => {
+      proc.kill("SIGKILL");
+      finish(null);
+    }, 3000);
+    proc.stdout?.on("data", (d: Buffer) => (out += d.toString()));
+    proc.on("error", () => {
+      clearTimeout(timer);
+      finish(null);
+    });
+    proc.on("exit", (code) => {
+      clearTimeout(timer);
+      finish(code === 0 ? out.trim() : null);
+    });
+  });
+}
+
+async function cmdDoctor(): Promise<void> {
+  const config = loadConfig();
+  const rows: Array<[string, string, boolean]> = [];
+
+  // Node 版本（EmberBot 需要 ≥22 以支持 TS 直跑）
+  const nodeMajor = Number(process.versions.node.split(".")[0]);
+  rows.push([
+    "Node.js",
+    nodeMajor >= 22 ? `v${process.versions.node} (≥22 ✓)` : `v${process.versions.node}（需 ≥22）`,
+    nodeMajor >= 22,
+  ]);
+
+  // Python 可用性（sidecar 需要）
+  const pyOut = await probe(config.pythonPath, ["--version"]);
+  rows.push([
+    `Python (${config.pythonPath})`,
+    pyOut ?? "不可用（sidecar 无法运行插件）",
+    !!pyOut,
+  ]);
+
+  // 插件目录
+  const pluginCount = existsSync(config.pluginsDir)
+    ? readdirSync(config.pluginsDir).filter((e) =>
+        existsSync(join(config.pluginsDir, e, "main.py"))
+      ).length
+    : 0;
+  rows.push([
+    "插件目录",
+    pluginCount ? `${config.pluginsDir}（${pluginCount} 个插件）` : `${config.pluginsDir}（无插件）`,
+    true,
+  ]);
+
+  // openclaw 安装状态
+  const ocCmd = config.openclawCmd.trim().split(/\s+/)[0];
+  const ocOut = await probe(ocCmd, ["--version"]);
+  rows.push([
+    `OpenClaw (${ocCmd})`,
+    ocOut ?? `未安装（${config.openclawCmd} 将无法启动，但 EmberBot 可单独运行）`,
+    !!ocOut,
+  ]);
+
+  // 网关连通性
+  let gwOk = false;
+  let gwMsg = `未运行（http://127.0.0.1:${config.port}）`;
+  try {
+    const resp = await fetch(`http://127.0.0.1:${config.port}/v1/models`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    gwOk = resp.ok;
+    gwMsg = gwOk ? `运行中 (http://127.0.0.1:${config.port}/v1)` : `HTTP ${resp.status}`;
+  } catch {
+    /* keep default */
+  }
+  rows.push(["EmberBot 网关", gwMsg, true]);
+
+  console.log("EmberBot 环境自检\n");
+  for (const [item, msg, ok] of rows) {
+    console.log(`  ${ok ? "✓" : "✗"} ${item.padEnd(24)} ${msg}`);
+  }
+  const failed = rows.filter((r) => !r[2]).length;
+  console.log(
+    failed ? `\n${failed} 项异常，请按提示处理。` : "\n全部正常，可以 ./eb start 了。"
+  );
+  if (failed) process.exitCode = 1;
+}
+
 function printHelp(): void {
   console.log(`EmberBot CLI
 
@@ -349,6 +443,7 @@ function printHelp(): void {
   eb stop           停止 EmberBot + OpenClaw
   eb restart        重启 EmberBot + OpenClaw
   eb status         查看运行状态
+  eb doctor         环境自检（Node/Python/openclaw/插件/网关）
   eb info           查看配置摘要
   eb plugins        列出 plugins/ 下的 AstrBot 插件
   eb test [消息]    向本地网关发一条测试消息（默认 /helloworld）
@@ -396,6 +491,9 @@ async function main(): Promise<void> {
       break;
     case "status":
       cmdStatus();
+      break;
+    case "doctor":
+      await cmdDoctor();
       break;
     case "info":
       cmdInfo();
