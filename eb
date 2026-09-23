@@ -2,4 +2,4 @@
 # EmberBot CLI launcher
 # 用法: ./eb start | stop | restart | status | gateway | openclaw | help
 DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-exec node "$DIR/src/cli.ts" "$@"
+exec node --disable-warning=ExperimentalWarning "$DIR/src/cli.ts" "$@"

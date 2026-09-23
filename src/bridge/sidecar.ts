@@ -7,6 +7,7 @@ import { EventEmitter } from "node:events";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { BridgeChatResult } from "../types.ts";
+import { log, error } from "../logger.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SIDECAR_PATH = resolve(__dirname, "../../python/sidecar.py");
@@ -73,12 +74,12 @@ export class SidecarBridge extends EventEmitter {
       proc.stderr.on("data", (chunk: string) => {
         // Python 侧未捕获输出（traceback 等），原样打到日志
         for (const l of chunk.split("\n")) {
-          if (l.trim()) console.error(`[sidecar:py] ${l}`);
+          if (l.trim()) error("sidecar:py", l);
         }
       });
 
       proc.on("error", (err) => {
-        console.error(`[sidecar] 启动失败: ${err.message}`);
+        error("sidecar", `启动失败: ${err.message}`);
         rejectReady(err);
       });
 
@@ -98,21 +99,22 @@ export class SidecarBridge extends EventEmitter {
     try {
       msg = JSON.parse(line);
     } catch {
-      console.error(`[sidecar] 无法解析的输出: ${line.slice(0, 200)}`);
+      error("sidecar", `无法解析的输出: ${line.slice(0, 200)}`);
       return;
     }
 
     switch (msg.type) {
       case "ready":
-        console.log(
-          `[sidecar] 插件加载完成: ${
+        log(
+          "sidecar",
+          `插件加载完成: ${
             msg.plugins?.map((p: PluginInfo) => p.name).join(", ") || "(无)"
           }`
         );
         this.emit("ready", msg.plugins ?? []);
         break;
       case "log":
-        console.log(`[astrbot:${msg.level ?? "info"}] ${msg.msg}`);
+        log(`astrbot:${msg.level ?? "info"}`, msg.msg);
         break;
       case "response": {
         const p = this.pending.get(msg.id);
@@ -125,7 +127,7 @@ export class SidecarBridge extends EventEmitter {
         break;
       }
       default:
-        console.log(`[sidecar] ${line.slice(0, 200)}`);
+        log("sidecar", line.slice(0, 200));
     }
   }
 
@@ -144,14 +146,14 @@ export class SidecarBridge extends EventEmitter {
       p.reject(new Error("sidecar 进程已退出"));
       this.pending.delete(id);
     }
-    console.error(`[sidecar] 进程退出 (code=${code} signal=${signal})，3 秒后重启`);
+    error("sidecar", `进程退出 (code=${code} signal=${signal})，3 秒后重启`);
     if (!this.restarting) {
       this.restarting = true;
       setTimeout(() => {
         this.restarting = false;
         this.readyPromise = null;
         this.start().catch((e) =>
-          console.error(`[sidecar] 重启失败: ${e.message}`)
+          error("sidecar", `重启失败: ${e.message}`)
         );
       }, 3000);
     }

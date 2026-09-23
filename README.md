@@ -84,7 +84,8 @@ cp config.example.json config.json   # 按需修改
 | `./eb help` | 帮助 |
 
 > `eb start` 会把进程放到后台（daemon 化），启动后立即返回控制权；日志分别写入
-> `data/logs/ember.log` 与 `data/logs/openclaw.log`。OpenClaw 启动命令通过
+> `data/logs/ember.log` 与 `data/logs/openclaw.log`。运行日志每行都带本地时间戳
+> （`[2026-08-31 14:22:05] [emberbot] ...`），便于排查。OpenClaw 启动命令通过
 > `config.json` 的 `openclawCmd` 配置（默认 `openclaw gateway`，也可用 `openclaw-cn gateway`）。
 
 ## 对接 OpenClaw + QQ

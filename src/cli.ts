@@ -75,7 +75,13 @@ function parseCmd(cmd: string): { cmd: string; args: string[] } {
 }
 
 function spawnEmber(): Promise<ChildProcess> {
-  return startDaemon("node", ["src/index.ts"], join(LOG_DIR, "ember.log"), ROOT);
+  // 屏蔽 Node 的 ExperimentalWarning（TS 直跑产生），避免污染日志
+  return startDaemon(
+    "node",
+    ["--disable-warning=ExperimentalWarning", "src/index.ts"],
+    join(LOG_DIR, "ember.log"),
+    ROOT
+  );
 }
 
 function startOpenclaw(cmdRaw: string): Promise<ChildProcess> {

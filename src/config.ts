@@ -2,6 +2,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { error } from "./logger.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
@@ -34,7 +35,7 @@ function loadConfigFile(): RawConfig {
   try {
     return JSON.parse(readFileSync(path, "utf-8"));
   } catch (err) {
-    console.error(`[emberbot] config.json 解析失败: ${err}`);
+    error("emberbot", `config.json 解析失败: ${err}`);
     return {};
   }
 }
